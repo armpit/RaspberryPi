@@ -5,8 +5,9 @@ _menu=true
 DIALOG_CANCEL=1
 DIALOG_ESC=255
 steam_cmd="/usr/local/bin/steam"
+dt_cmd="startx"
 es_cmd="/usr/bin/emulationstation"
-ms_cmd="LD_LIBRARY_PATH=/usr/local/lib mehstation"
+ms_cmd="/usr/bin/mehstation"
 
 function pbar()
 {
@@ -70,6 +71,7 @@ do
 		clear
 		_msg="Starting mehstation..."
 		pbar
+		LD_LIBRARY_PATH=/usr/local/lib
 		exec $ms_cmd
 		;;
 	4)
