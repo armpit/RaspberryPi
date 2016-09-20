@@ -1,9 +1,7 @@
 # RetroPie
-
-* as_menu.sh
-
-A simple startup menu to select booting into ES, Steam, or a shell prompt.
+----------
+Scripts and stuff for Retropie.
 
 * ps3.map
 
-PS3 controller mapping that works with moonlight without sixpair. (Only tested over USB)
+	PS3 controller mapping for use with moonlight-embedded.
