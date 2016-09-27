@@ -1,8 +1,7 @@
 # RaspberryPi
-
 ----------
 
-Scripts and stuff for my pi.
+Scripts, configurations, documentation and other things for my rPi.
 
 * login.sh
 

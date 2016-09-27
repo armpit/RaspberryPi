@@ -1,6 +1,7 @@
-# RetroPie
+![](https://retropie.org.uk/wp-content/uploads/2016/04/RetroPieWebsiteLogo.png)
 ----------
-Scripts and stuff for Retropie.
+
+Scripts, diffs, and other stuff for [Retropie](http://http://retropie.org.uk/).
 
 * ps3.map
 
