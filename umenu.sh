@@ -94,3 +94,5 @@ do
 	esac
 
 done
+
+exit $?
