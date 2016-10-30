@@ -1,3 +1,4 @@
+![](http://rosieduncanblog.com/wp-content/uploads/2013/01/Raspberry-Pi-logo.jpg)
 # RaspberryPi
 ----------
 
