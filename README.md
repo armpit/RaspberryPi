@@ -9,3 +9,7 @@ Scripts, configurations, documentation and other things for my rPi.
 * umenu.sh
 
 	Startup menu showing tools, configuration and interface choices.
+
+* steam
+
+	A wrapper for running steam through moonlight-embedded.

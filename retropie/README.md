@@ -9,4 +9,4 @@ Scripts, diffs, and other stuff for [Retropie](http://http://retropie.org.uk/).
 
 * backup.sh
 
-	Backup save games, bios and configs. Will eventually support cloud storage. You can store your backups on dropbox, this is done using [Dropbox-Uploader](http://http://retropie.org.uk/). This script will automatically install the script for you. Google drive and other options will eventually be supported.
+	Backup save games, bios and configs. You can store your backups on dropbox, this is done using [Dropbox-Uploader](http://http://retropie.org.uk/). This script will automatically install the script for you. Google drive and other options will eventually be supported.
