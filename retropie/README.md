@@ -5,8 +5,12 @@ Scripts, diffs, and other stuff for [Retropie](http://http://retropie.org.uk/).
 
 * ps3.map
 
-	PS3 controller mapping for use with moonlight-embedded.
+    PS3 controller mapping.
 
 * backup.sh
 
-	Backup save games, bios and configs. You can store your backups on dropbox, this is done using [Dropbox-Uploader](http://http://retropie.org.uk/). This script will automatically install the script for you. Google drive and other options will eventually be supported.
+    Backup save games, bios and configs. You can store your backups on dropbox, this is done using [Dropbox-Uploader](http://http://retropie.org.uk/). This script will automatically install the script for you. Google drive and other options will eventually be supported.
+
+* sixad_restart.py
+
+    Monitor and restart the sixad service.
