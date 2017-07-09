@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Simple autostart menu for Retropie.
+# Simple autostart menu for RaspberryPi.
 
-_menu=true
 DIALOG_CANCEL=1
 DIALOG_ESC=255
+
 steam_cmd="/usr/local/bin/steam"
+steam_res="720"
+
 dt_cmd="startx"
 es_cmd="/usr/bin/emulationstation"
 ms_cmd="/usr/bin/mehstation"
 db_cmd="/usr/bin/dosbox"
+rp_cmd="sudo /home/pi/RetroPie-Setup/retropie_setup.sh"
 
 function pbar()
 {
@@ -22,6 +25,7 @@ function pbar()
 }
 
 # Menu Loop
+_menu=true
 while $_menu;
 do
 	exec 3>&1
@@ -29,15 +33,17 @@ do
 	selection=$(whiptail --title "Interface Select" \
 		--backtitle "into the wonderfull" \
 		--clear \
-		--menu "Select" 20 78 8 \
+		--menu "Select" 20 78 10 \
 		"1" "Desktop" \
 		"2" "Dosbox" \
 		"3" "Emulation Station" \
 		"4" "mehstation" \
-		"5" "Steam" \
-		"6" "Shell" \
-		"7" "Reboot" \
-		"8" "Shutdown System" \
+		"5" "RetroPie Setup" \
+		"6" "Steam" \
+		"7" "Shell" \
+		"8" "Midnight Commander" \
+		"9" "Reboot" \
+		"10" "Shutdown System" \
 		2>&1 1>&3)
 
 	exit_status=$?
@@ -87,21 +93,35 @@ do
 	5)
 		_menu=false
 		clear
-		_msg="Connecting to Steam..."
+		_msg="Starting Retropie setup..."
 		pbar
-		exec $steam_cmd
+		exec $rp_cmd
 		;;
 	6)
 		_menu=false
 		clear
+		_msg="Connecting to Steam..."
+		pbar
+		exec $steam_cmd $steam_res
 		;;
 	7)
+		_menu=false
+		clear
+		;;
+	8)
+		_menu=false
+		clear
+		_msg="Starting Midnight Commander..."
+		pbar
+		exec $(which mc)
+		;;
+	9)
 		_menu=false
 		_msg="Rebooting system..."
 		pbar
 		sudo reboot
 		;;
-	8)
+	10)
 		_menu=false
 		_msg="Shutting down system..."
 		pbar
