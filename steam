@@ -1,10 +1,8 @@
-#!/bin/sh -
+#!/bin/bash -
 
-[ $1 ] && RES=$1 || RES=720;
-[ ! -z "${RES##[0-9]*}" ] && RES=720;
+[[ $1 ]] && RES=$1 || RES=720;
+[[ ! -z "${RES##[0-9]*}" ]] && RES=720
 
-[[ $RES -ne 720 || $RES -ne 1080 ]] && echo "Bad resolution." & exit $?;
+[[ $RES -eq 720 ]] && moonlight stream -720 -30fps -mapping /home/pi/moonlight/ps3.map -app Steam;
 
-[ $RES -eq 720 ] && moonlight stream -720 -30fps -mapping /home/pi/moonlight/ps3.map -app Steam;
-
-[ $RES -eq 1080 ] && moonlight stream -1080 -30fps -mapping /home/pi/moonlight/ps3.map -app Steam;
+[[ $RES -eq 1080 ]] && moonlight stream -1080 -30fps -mapping /home/pi/moonlight/ps3.map -app Steam;
