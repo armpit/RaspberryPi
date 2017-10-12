@@ -2,7 +2,7 @@
 # Simple autostart menu for RaspberryPi.
 
 inx=$(ps aux | grep -v grep | grep -c openbox)
-[[ $inx ]] && exit;
+[[ $inx -gt 0 ]] && exit;
 
 DIALOG_CANCEL=1
 DIALOG_ESC=255
