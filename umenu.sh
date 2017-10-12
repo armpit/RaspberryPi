@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Simple autostart menu for RaspberryPi.
 
+inx=$(ps aux | grep -v grep | grep -c openbox)
+[[ $inx ]] && exit;
+
 DIALOG_CANCEL=1
 DIALOG_ESC=255
 
@@ -131,4 +134,4 @@ do
 
 done
 
-exit $?
+
