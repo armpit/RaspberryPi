@@ -1,0 +1,22 @@
+#!/bin/bash -
+# Enable/disable function keys on logitech k400
+# by setting the fn-swap flag.
+#
+# True = multimedia keys active
+# False = function keys active
+#
+# The factory default is to have tbe multimedia keys activated.
+#
+
+if [ ! $(which solaar) ]; then echo "solaar not found!"; exit; fi
+
+state=$(solaar config 1 | grep -c "fn-swap\ \=\ True")
+
+if [ $state == 1 ];
+then
+    solaar config 1 fn-swap 0 >/dev/null 2>&1;
+    echo "enabled"
+else
+    solaar config 1 fn-swap 1 >/dev/null 2>&1;
+    echo "disabled"
+fi
