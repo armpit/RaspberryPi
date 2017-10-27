@@ -1,8 +1,14 @@
 #!/bin/bash -
 
-[[ $1 ]] && RES=$1 || RES=720;
-[[ ! -z "${RES##[0-9]*}" ]] && RES=720
+BIN=$(which moonlight)
+if [ -z $BIN ];then echo "moonlight binary not found!"; exit; fi
 
-[[ $RES -eq 720 ]] && moonlight stream -720 -30fps -mapping /home/pi/moonlight/ps3.map -app Steam;
+[[ $1 ]] && RES=$1 || RES=1080;
+[[ $2 ]] && FPS=$2 || FPS=60
 
-[[ $RES -eq 1080 ]] && moonlight stream -1080 -30fps -mapping /home/pi/moonlight/ps3.map -app Steam;
+[[ ! -z "${RES##[0-9]*}" ]] && RES=1080;
+[[ ! -z "${FPS##[0-9]*}" ]] && FPS=60;
+
+OPTS="-packetsize 1024 -bitrate 10000 -fps ${FPS} -unsupported -remote -nosops -app Steam -audio hw:0,0"
+
+$BIN stream -${RES} -fps ${FPS} ${OPTS}
