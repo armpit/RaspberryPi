@@ -9,6 +9,6 @@ if [ -z $BIN ];then echo "moonlight binary not found!"; exit; fi
 [[ ! -z "${RES##[0-9]*}" ]] && RES=1080;
 [[ ! -z "${FPS##[0-9]*}" ]] && FPS=60;
 
-OPTS="-packetsize 1024 -bitrate 10000 -fps ${FPS} -unsupported -remote -nosops -app Steam -audio hw:0,0"
+OPTS="-packetsize 1024 -bitrate 10000 -unsupported -remote -nosops -app Steam -audio hw:0,0"
 
 $BIN stream -${RES} -fps ${FPS} ${OPTS}
