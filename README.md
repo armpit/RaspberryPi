@@ -13,3 +13,7 @@ Scripts, configurations, documentation and other things for my rPi.
 * steam
 
 	A wrapper for running steam through moonlight-embedded.
+
+* fkeys
+
+    Simple script for toggling the fn-swap flag of the logitech k400 keyboard.
