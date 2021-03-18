@@ -1,0 +1,61 @@
+#!/bin/env python
+
+import RPi.GPIO as GPIO
+import time
+import os
+
+btn1Memory = 0
+btn2Memory = 0
+btn3Memory = 0
+btn4Memory = 0
+
+Btn1 = 17       # first button
+Btn2 = 22       # second button
+Btn3 = 23       # third button
+Btn4 = 27       # fourth button
+GPIO.setmode(GPIO.BCM)
+
+GPIO.setup(Btn1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(Btn2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(Btn3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(Btn4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+while True:
+    time.sleep(0.2)
+    Btn1_state = GPIO.input(Btn1)      # Button 1 for power off
+    if Btn1_state == False:
+        if btn1Memory == 1:
+                btn1Memory = 0
+#                os.system("sudo halt")
+        else:
+                btn1Memory = 1
+                # nothing to do here because we never get here
+        time.sleep(0.2)
+
+    Btn2_state = GPIO.input(Btn2)       # Currently not doing anything
+    if Btn2_state == False:
+        if btn2Memory == 1:
+                btn2Memory = 0
+                # run some command
+        else:
+                btn2Memory = 1
+                # run some command
+        time.sleep(0.2)
+
+    Btn3_state = GPIO.input(Btn3)       # Switches backlight on and off
+    if Btn3_state == False:
+        if btn3Memory == 1:
+                btn3Memory = 0
+        else:
+                btn3Memory = 1
+        time.sleep(0.2)
+
+    Btn4_state = GPIO.input(Btn4)       # Launches or closes OctoPiPanel
+    if Btn4_state == False:
+        if btn4Memory == 1:
+                btn4Memory = 0
+                os.system("sudo sh -c \"echo '1' > /sys/class/backlight/soc\:backlight/brightness\"")
+        else:
+                btn4Memory = 1
+                os.system("sudo sh -c \"echo '0' > /sys/class/backlight/soc\:backlight/brightness\"")
+        time.sleep(0.2)
