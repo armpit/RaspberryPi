@@ -1,61 +1,145 @@
 #!/bin/env python
 
 import RPi.GPIO as GPIO
-import time
-import os
+import os, sys, time, signal, logging, datetime, atexit
+from signal import signal, SIGINT, SIGKILL
+from logging.handlers import TimedRotatingFileHandler
 
-btn1Memory = 0
-btn2Memory = 0
-btn3Memory = 0
-btn4Memory = 0
+def signal_handler(signal_recieved, frame):
+    os.remove(pidfile)
+    print('SIGINT or CTRL-C detected. Exiting gracefully')
+    exit(0)
 
-Btn1 = 17       # first button
-Btn2 = 22       # second button
-Btn3 = 23       # third button
-Btn4 = 27       # fourth button
-GPIO.setmode(GPIO.BCM)
-
-GPIO.setup(Btn1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(Btn2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(Btn3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(Btn4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-while True:
+# Power off
+def btn1_pressed(state):
+    if state == 1:
+        state = 0
+    #os.system("sudo halt")
+    else:
+        state = 1
+        # nothing to do here because we never get here
     time.sleep(0.2)
-    Btn1_state = GPIO.input(Btn1)      # Button 1 for power off
-    if Btn1_state == False:
-        if btn1Memory == 1:
-                btn1Memory = 0
-#                os.system("sudo halt")
-        else:
-                btn1Memory = 1
-                # nothing to do here because we never get here
+    return state
+
+# Null
+def btn2_pressed(state):
+    if state == 1:
+        state = 0
+        # run some command
+    else:
+        state = 1
+        # run some command
+    time.sleep(0.2)
+    return state
+
+# Restart padd
+def btn3_pressed(state):
+    padd_pid = 0
+
+    for line in os.popen("ps aux | grep padd.sh | grep -v grep"):
+        fields = line.split()
+    padd_pid = fields[1]
+
+    os.kill(int(padd_pid), signal.SIGKILL)
+    log_message("padd restarted.", 20)
+    time.sleep(0.2)
+    return state
+
+# Switches backlight on and off
+def btn4_pressed(state):
+    if state == 1:
+        state = 0
+        os.system("sudo sh -c \"echo '1' > /sys/class/backlight/soc\:backlight/brightness\"")
+        log_message('PiTFT turned on', 20)
+    else:
+        state = 1
+        os.system("sudo sh -c \"echo '0' > /sys/class/backlight/soc\:backlight/brightness\"")
+        log_message('PiTFT turned off', 20)
+    time.sleep(0.2)
+    return state
+
+# Console log handler
+def get_console_handler():
+   console_handler = logging.StreamHandler(sys.stdout)
+   console_handler.setFormatter(log_format)
+   return console_handler
+
+# Logfile handler
+def get_file_handler():
+   file_handler = TimedRotatingFileHandler(logfile, when='midnight')
+   file_handler.setFormatter(log_format)
+   return file_handler
+
+# Setup log handlers
+def get_logger(logger_name):
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG) # better to have too much log than not enough
+
+    if console_log != 0:
+        logger.addHandler(get_console_handler())
+
+    logger.addHandler(get_file_handler())
+
+    # with this pattern, it's rarely necessary to propagate the error up to parent
+    logger.propagate = False
+    return logger
+
+# Write to logfile
+def log_message(message, level):
+    if level == 20:
+        my_logger.info(message)
+    if level == 10:
+        my_logger.debug(message)
+
+if __name__ == '__main__':
+    pidfile = "buttond.pid"
+    logfile = "/tmp/buttond.log"
+    log_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    console_log = 0
+
+    btn1State = 0
+    btn2State = 0
+    btn3State = 0
+    btn4State = 0
+
+    Btn1 = 17       # first button
+    Btn2 = 22       # second button
+    Btn3 = 23       # third button
+    Btn4 = 27       # fourth button
+
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(Btn1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(Btn2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(Btn3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(Btn4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+    pid = str(os.getpid())
+    file(pidfile, 'w+').write("%s\n" % pid)
+
+    my_logger = get_logger("buttond");
+    log_message('buttond started', 1)
+
+    signal(SIGINT, signal_handler)
+
+    while True:
         time.sleep(0.2)
 
-    Btn2_state = GPIO.input(Btn2)       # Currently not doing anything
-    if Btn2_state == False:
-        if btn2Memory == 1:
-                btn2Memory = 0
-                # run some command
-        else:
-                btn2Memory = 1
-                # run some command
-        time.sleep(0.2)
+        Btn1_state = GPIO.input(Btn1)
+        if Btn1_state == False:
+            log_message("button #1 pressed", 10)
+            btn1State = btn1_pressed(btn1State)
 
-    Btn3_state = GPIO.input(Btn3)       # Switches backlight on and off
-    if Btn3_state == False:
-        if btn3Memory == 1:
-                btn3Memory = 0
-        else:
-                btn3Memory = 1
-        time.sleep(0.2)
+        Btn2_state = GPIO.input(Btn2)
+        if Btn2_state == False:
+            log_message("button #2 pressed.", 10)
+            btn2State = btn2_pressed(btn2State);
 
-    Btn4_state = GPIO.input(Btn4)       # Launches or closes OctoPiPanel
-    if Btn4_state == False:
-        if btn4Memory == 1:
-                btn4Memory = 0
-                os.system("sudo sh -c \"echo '1' > /sys/class/backlight/soc\:backlight/brightness\"")
-        else:
-                btn4Memory = 1
-                os.system("sudo sh -c \"echo '0' > /sys/class/backlight/soc\:backlight/brightness\"")
-        time.sleep(0.2)
+        Btn3_state = GPIO.input(Btn3)
+        if Btn3_state == False:
+            log_message("button #3 pressed.", 10)
+            btn3State = btn3_pressed(btn3State)
+
+        Btn4_state = GPIO.input(Btn4)
+        if Btn4_state == False:
+            log_message("button #4 pressed.", 10)
+            btn4State = btn4_pressed(btn4State)
