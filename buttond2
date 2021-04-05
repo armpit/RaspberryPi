@@ -1,0 +1,416 @@
+#!/usr/bin/python
+
+"""
+    Todo: handle changing user (file ownership, etc)
+          start using return values (daemon should not produce messages)
+
+    XXX: first press of button 4 causes an off action
+"""
+
+import atexit
+import datetime
+import os
+import psutil
+import procname
+import signal
+import sys
+#import threading
+import time
+
+from signal import signal, SIGTERM, SIGKILL, SIGINT, SIGHUP, SIGUSR1, SIGUSR2
+from subprocess import check_output
+
+import RPi.GPIO as GPIO
+
+E_SUCCESS = 0
+E_FAILED = 1
+E_RUNNING = 2
+E_NOT_RUNNING = 3
+E_SET_USER_FAILED = 4
+
+"""
+    Satans Child
+"""
+class Daemon(object):
+
+    def __init__(self, pid_file, stdout='/var/log/buttond_out.log', stderr='/var/log/buttond_err.log'):
+        self.stdout = stdout
+        self.stderr = stderr
+        self.pid_file = pid_file
+        # user to run under
+        self.daemon_user = None
+
+    """
+        Delete the pid file.
+    """
+    def del_pid(self):
+        os.remove(self.pid_file)
+
+    """
+        Perform double fork.
+    """
+    def daemonize(self):
+        # Fork first child
+        try:
+            if os.fork():
+                sys.exit(0)
+        except OSError, e:
+            return E_FAILED
+
+        # Decouple from parent environment
+        os.chdir("/")
+        os.setsid()
+        os.umask(0)
+
+        # Second fork
+        try:
+            if os.fork():
+                sys.exit()
+        except OSError, e:
+            return E_FAILED
+
+        # redirect standard file descripters
+        with open('/dev/null', 'r') as dev_null:
+            os.dup2(dev_null.fileno(), sys.stdin.fileno())
+
+        sys.stderr.flush()
+        with open(self.stderr, 'a+', 0) as stderr:
+            os.dup2(stderr.fileno(), sys.stderr.fileno())
+
+        sys.stdout.flush()
+        with open(self.stdout, 'a+', 0) as stdout:
+            os.dup2(stdout.fileno(), sys.stdout.fileno())
+
+        # write pidfile
+        atexit.register(self.del_pid)
+        pid = str(os.getpid())
+        with open(self.pid_file, 'w+') as pid_file:
+            pid_file.write('{0}'.format(pid))
+
+        # Change user
+        if self.daemon_user:
+            self.log_message("Changing daemon user", 10)
+            try:
+                uid = pwd.getpwnam(self.daemon_user)[2]
+                os.setuid(uid)
+            except NameError, e:
+                return E_SET_USER_FAILED
+            except OSError, e:
+                return E_SET_USER_FAILED
+
+        return E_SUCCESS
+
+
+    """
+        Return the pid read from the pid file.
+    """
+    def get_pid_by_file(self):
+        try:
+            with open(self.pid_file, 'r') as pid_file:
+                pid = int(pid_file.read().strip())
+            return pid
+        except IOError:
+            return E_FAILED
+
+
+    """
+        Return pid from pidof.
+    """
+    def get_pid(self):
+        try:
+            pid = int(check_output(["pidof", "-s", "PiTFT-buttond"]))
+            self.log_message("get_pid() returned: " + str(pid), 20)
+            return pid
+        except:
+            self.log_message("get_pid() failed", 20)
+            return E_FAILED
+
+
+    """
+        Start the daemon.
+    """
+    def start(self):
+        print "Starting..."
+        pid = self.get_pid_by_file()
+        if pid != 1:
+            print 'PID file {0} exists. Is the deamon already running?'.format(self.pid_file)
+            sys.exit(1)
+
+        d = self.daemonize()
+
+        if d == E_SUCCESS:
+            self.log_message("daemonized", 20)
+            self.run()
+        elif d == E_SET_USER_FAILED:
+            self.log_message("Failed to set daemon user", 20)
+            sys.exit(1)
+
+
+    """
+        Stop the daemon.
+    """
+    def stop(self):
+        print "Stopping..."
+        self.log_message("Stopping daemon.", 20)
+
+        pid = self.get_pid_by_file()
+
+        if not pid:
+            pid = self.get_pid()
+            if not pid:
+                print "PID file {0} doesn't exist and process cannot retrieve pid. daemon not running?".format(self.pid_file)
+                return E_FAILED
+
+        # Time to kill.
+        try:
+            while 1:
+                os.kill(pid, SIGTERM)
+                time.sleep(0.1)
+        except OSError as err:
+            if 'No such process' in err.strerror and os.path.exists(self.pid_file):
+                os.remove(self.pid_file)
+            else:
+                return E_FAILED
+
+        return E_SUCCESS
+
+    """
+        Restart the deamon.
+    """
+    def restart(self):
+        self.log_message("Restarting daemon.", 20)
+        if self.check():
+            status = self.stop()
+        if status == E_FAILED:
+            return status
+
+        return self.start()
+
+
+    """
+        Run the daemon.
+    """
+    def run(self):
+        self.log_message("Running daemon.", 20)
+        procname.setprocname("PiTFT-buttond")
+        do_shit()
+
+
+    """
+        Write to logfile.
+    """
+    def log_message(self, message, level):
+        with open(self.stdout, 'a') as stdout:
+            stdout.write(datetime.datetime.now().isoformat() + ' - ' + message + '\n')
+        time.sleep(0.2)
+
+
+    """
+        Change user
+
+    """
+    def set_user(self, username):
+        if not isinstance(username, str):
+            raise TypeError('username should be a string')
+        self.daemon_user = username
+
+
+    """
+        Check if daemon is running.
+    """
+    def check(self):
+        self.log_message("Check daemon status.", 10)
+
+        if os.path.exists(self.pid_file):
+            pid = self.get_pid_by_file()
+            self.log_message("Pidfile found (" + str(pid) +")", 10)
+
+            try:
+                os.kill(pid, 0)
+            except OSError as err:
+                if 'No such process' in err.strerror and os.path.exists(self.pid_file):
+                    print("Not running, removing stale pidfile")
+                    os.remove(self.pid_file)
+                    return None
+                else:
+                    print err
+                    return None
+            else:
+                print("running (" + str(pid) + ")")
+        else:
+            self.log_message("No pidfile found.", 10)
+            try:
+                pid = self.get_pid()
+
+                if pid != 1:
+                    self.log_message("Checking status via via profile", 10)
+
+                    procfile = file("/proc/%d/status" % pid, 'r')
+                    procfile.close()
+
+                    print("running (" + str(pid) + "), but no pidfile present.")
+                    with open(self.pid_file, 'w+') as pid_file:
+                        pid_file.write('{0}'.format(pid))
+                else:
+                    print("not running")
+                    return None
+
+            except IOError:
+                if pid == 1:
+                    self.log_message("baz", 10)
+                    print("not running")
+                    return None
+                else:
+                    self.log_message("nerk", 10)
+                    sys.stdout.write("there is not a process with the PID specified in %s\n" % pid)
+
+        return pid
+
+"""
+    Handle Signals
+"""
+def signal_handler(signal_recieved, frame):
+    if signal_recieved == 1:
+        daemon.log_message("Recieved SIGHUP, restarting." , 10)
+        daemon.restart()
+    if signal_recieved == 2:
+        daemon.log_message("Recieved SIGINT, quitting", 10)
+        daemon.stop()
+    if signal_recieved == 10:
+        daemon.log_message("Shiver me timbers!", 10)
+    if signal_recieved == 12:
+        daemon.log_message("Stove me head in with a lead pipe!", 10)
+
+"""
+    Lets actually cook this chook!
+"""
+def do_shit():
+    btn1State = 0
+    btn2State = 0
+    btn3State = 0
+    btn4State = 0
+
+    Btn1 = 17       # first button
+    Btn2 = 22       # second button
+    Btn3 = 23       # third button
+    Btn4 = 27       # fourth button
+
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(Btn1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(Btn2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(Btn3, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(Btn4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+    """ The main loop of the daemon. """
+    while 1:
+        time.sleep(0.2)
+
+        Btn1_state = GPIO.input(Btn1)
+        if Btn1_state == False:
+            daemon.log_message("button #1 pressed", 10)
+            btn1State = btn1_pressed(btn1State)
+
+        Btn2_state = GPIO.input(Btn2)
+        if Btn2_state == False:
+            daemon.log_message("button #2 pressed.", 10)
+            btn2State = btn2_pressed(btn2State);
+
+        Btn3_state = GPIO.input(Btn3)
+        if Btn3_state == False:
+            daemon.log_message("button #3 pressed.", 10)
+            btn3State = btn3_pressed(btn3State)
+
+        Btn4_state = GPIO.input(Btn4)
+        if Btn4_state == False:
+            daemon.log_message("button #4 pressed.", 10)
+            btn4State = btn4_pressed(btn4State)
+
+
+"""
+    Button #1 pressed.
+"""
+def btn1_pressed(state):
+    if state == 1:
+        state = 0
+        #os.system("sudo halt")
+    else:
+        state = 1
+        # nothing to do here because we never get here
+    time.sleep(0.2)
+    return state
+
+"""
+    Button #2 pressed.
+"""
+def btn2_pressed(state):
+    if state == 1:
+        state = 0
+        # run some command
+    else:
+        state = 1
+        # run some command
+    time.sleep(0.2)
+    return state
+
+"""
+    Button #3 pressed.
+"""
+def btn3_pressed(state):
+    padd_pid = 0
+
+#    for line in os.popen("ps aux | grep padd.sh | grep -v grep"):
+#        fields = line.split()
+#    padd_pid = fields[1]
+
+#    os.kill(int(padd_pid), signal.SIGKILL)
+#    daemon.log_message("padd restarted.", 20)
+    time.sleep(0.2)
+    return state
+
+
+"""
+    Button #4 pressed.
+"""
+def btn4_pressed(state):
+    if state == 1:
+        state = 0
+        os.system("sudo sh -c \"echo '1' > /sys/class/backlight/soc\:backlight/brightness\"")
+        daemon.log_message('PiTFT turned on', 20)
+    else:
+        state = 1
+        os.system("sudo sh -c \"echo '0' > /sys/class/backlight/soc\:backlight/brightness\"")
+        daemon.log_message('PiTFT turned off', 20)
+    time.sleep(0.2)
+    return state
+
+
+"""
+    Up and at em!
+"""
+if __name__ == '__main__':
+    signal(SIGINT,  signal_handler)
+    signal(SIGHUP,  signal_handler)
+    signal(SIGUSR1, signal_handler)
+    signal(SIGUSR2, signal_handler)
+
+    if len(sys.argv) < 2:
+        print "Usage: {0} start|stop|restart".format(sys.argv[0])
+        sys.exit(2)
+
+    daemon = Daemon('/var/run/buttond.pid')
+
+    if '-d' == sys.argv[1]:
+        daemon.run()
+    elif 'start' == sys.argv[1]:
+#        daemon.set_user("pi")
+        daemon.start()
+    elif 'stop' == sys.argv[1]:
+        daemon.stop()
+    elif 'restart' == sys.argv[1]:
+        daemon.restart()
+    elif 'check' == sys.argv[1]:
+        daemon.check()
+    else:
+        print "Unknown command '{0}'".format(sys.argv[1])
+        sys.exit(2)
+
