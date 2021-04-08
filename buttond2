@@ -11,12 +11,12 @@ import os
 import psutil
 import procname
 import signal
+import subprocess
 import sys
-#import threading
 import time
 
 from signal import signal, SIGTERM, SIGKILL, SIGINT, SIGHUP, SIGUSR1, SIGUSR2
-from subprocess import check_output
+from subprocess import check_output, Popen, PIPE
 
 import RPi.GPIO as GPIO
 
@@ -42,17 +42,22 @@ class Daemon(object):
         Delete the pid file.
     """
     def del_pid(self):
+        self.log_message("daemon.del_pid()", 10)
         os.remove(self.pid_file)
 
     """
         Perform double fork.
     """
     def daemonize(self):
+        self.log_message("daemon.daemonize()", 10)
+
         # Fork first child
         try:
+            self.log_message("daemon.daemonize() - first fork", 10)
             if os.fork():
                 sys.exit(0)
         except OSError, e:
+            self.log_message("daemon.daemonize() - first fork failed", 10)
             return E_FAILED
 
         # Decouple from parent environment
@@ -62,9 +67,11 @@ class Daemon(object):
 
         # Second fork
         try:
+            self.log_message("daemon.daemonize() - second fork", 10)
             if os.fork():
                 sys.exit()
         except OSError, e:
+            self.log_message("daemon.daemonize() - second fork failed", 10)
             return E_FAILED
 
         # redirect standard file descripters
@@ -87,7 +94,7 @@ class Daemon(object):
 
         # Change user
         if self.daemon_user:
-            self.log_message("Changing daemon user", 10)
+            self.log_message("changing daemon user", 10)
             try:
                 uid = pwd.getpwnam(self.daemon_user)[2]
                 os.setuid(uid)
@@ -96,6 +103,7 @@ class Daemon(object):
             except OSError, e:
                 return E_SET_USER_FAILED
 
+        self.log_message("here shines a shiny daemon....", 20)
         return E_SUCCESS
 
 
@@ -103,6 +111,7 @@ class Daemon(object):
         Return the pid read from the pid file.
     """
     def get_pid_by_file(self):
+        self.log_message("daemon.get_pid_by_file()", 10)
         try:
             with open(self.pid_file, 'r') as pid_file:
                 pid = int(pid_file.read().strip())
@@ -129,6 +138,8 @@ class Daemon(object):
     """
     def start(self):
         print "Starting..."
+        self.log_message("daemon.start()", 10)
+
         pid = self.get_pid_by_file()
         if pid != 1:
             print 'PID file {0} exists. Is the deamon already running?'.format(self.pid_file)
@@ -149,14 +160,14 @@ class Daemon(object):
     """
     def stop(self):
         print "Stopping..."
-        self.log_message("Stopping daemon.", 20)
+        self.log_message("daemon.stop()", 10)
 
         pid = self.get_pid_by_file()
 
         if not pid:
             pid = self.get_pid()
             if not pid:
-                print "PID file {0} doesn't exist and process cannot retrieve pid. daemon not running?".format(self.pid_file)
+                self.log_message("PID file {0} doesn't exist and process cannot retrieve pid. daemon not running?".format(self.pid_file), 20)
                 return E_FAILED
 
         # Time to kill.
@@ -176,8 +187,7 @@ class Daemon(object):
         Restart the deamon.
     """
     def restart(self):
-        self.log_message("Restarting daemon.", 20)
-
+        self.log_message("daemon.restart()", 10)
         status = 0
 
         if self.check():
@@ -193,7 +203,7 @@ class Daemon(object):
         Run the daemon.
     """
     def run(self):
-        self.log_message("Running daemon.", 20)
+        self.log_message("daemon.run()", 10)
         procname.setprocname("PiTFT-buttond")
         do_shit()
 
@@ -212,6 +222,8 @@ class Daemon(object):
 
     """
     def set_user(self, username):
+        self.log_message("daemon.set_user()", 10)
+
         if not isinstance(username, str):
             raise TypeError('username should be a string')
         self.daemon_user = username
@@ -221,7 +233,7 @@ class Daemon(object):
         Check if daemon is running.
     """
     def check(self):
-        self.log_message("Check daemon status.", 10)
+        self.log_message("daemon.check()", 10)
 
         if os.path.exists(self.pid_file):
             pid = self.get_pid_by_file()
@@ -259,11 +271,9 @@ class Daemon(object):
 
             except IOError:
                 if pid == 1:
-                    self.log_message("baz", 10)
                     print("not running")
                     return None
                 else:
-                    self.log_message("nerk", 10)
                     sys.stdout.write("there is not a process with the PID specified in %s\n" % pid)
 
         return pid
@@ -287,8 +297,11 @@ def signal_handler(signal_recieved, frame):
     Lets actually cook this chook!
 """
 def do_shit():
+    daemon.log_message("cooking the chook", 20)
 
-    if os.system("cat /sys/class/backlight/soc\:backlight/brightness") == 0:
+    test = subprocess.Popen(['cat /sys/class/backlight/soc\:backlight/brightness'], stdout = subprocess.PIPE, shell = True)
+
+    if test == 0:
         btn1State = 0
     else:
         btn1State = 1
@@ -309,6 +322,7 @@ def do_shit():
     GPIO.setup(Btn4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
     """ The main loop of the daemon. """
+    daemon.log_message("entering the twilight zone......", 20)
     while 1:
         time.sleep(0.2)
 
