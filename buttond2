@@ -1,9 +1,9 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
-"""
-    Todo: handle changing user (file ownership, etc)
-          start using return values (daemon should not produce messages)
-"""
+__author__ = "armpit"
+__email__ = "armpit@rumpigs.net"
+__version__ = "0.1.1"
 
 import atexit
 import datetime
@@ -15,16 +15,28 @@ import subprocess
 import sys
 import time
 
+from argparse import ArgumentParser
 from signal import signal, SIGTERM, SIGKILL, SIGINT, SIGHUP, SIGUSR1, SIGUSR2
 from subprocess import check_output, Popen, PIPE
 
 import RPi.GPIO as GPIO
+
+"""
+    Todo: handle changing user (file ownership, etc)
+          start using return values (daemon should not produce messages)
+"""
+
+_PRODUCT_NAME="buttond2"
+_MODULE_FILE = sys.executable if getattr(sys, 'frozen', False) else __file__
+_PROGRAM_DIR = os.path.abspath(os.path.dirname(_MODULE_FILE))
 
 E_SUCCESS = 0
 E_FAILED = 1
 E_RUNNING = 2
 E_NOT_RUNNING = 3
 E_SET_USER_FAILED = 4
+
+_DEBUG_LOG = 0
 
 """
     Satans Child
@@ -126,10 +138,10 @@ class Daemon(object):
     def get_pid(self):
         try:
             pid = int(check_output(["pidof", "-s", "PiTFT-buttond"]))
-            self.log_message("get_pid() returned: " + str(pid), 20)
+            self.log_message("get_pid() returned: " + str(pid), 10)
             return pid
         except:
-            self.log_message("get_pid() failed", 20)
+            self.log_message("get_pid() failed", 10)
             return E_FAILED
 
 
@@ -137,6 +149,11 @@ class Daemon(object):
         Start the daemon.
     """
     def start(self):
+        self.log_message("Product Name: " + _PRODUCT_NAME, 20)
+        self.log_message("Product Version: " + __version__, 20)
+        self.log_message("Module File: " + _MODULE_FILE, 20)
+        self.log_message("Program Dir: " + _PROGRAM_DIR, 20)
+
         print "Starting..."
         self.log_message("daemon.start()", 10)
 
@@ -212,6 +229,10 @@ class Daemon(object):
         Write to logfile.
     """
     def log_message(self, message, level):
+        if level == 10:
+            if _DEBUG_LOG == 0:
+                return
+
         with open(self.stdout, 'a') as stdout:
             stdout.write(datetime.datetime.now().isoformat() + ' - ' + message + '\n')
         time.sleep(0.2)
@@ -414,24 +435,52 @@ if __name__ == '__main__':
     signal(SIGUSR1, signal_handler)
     signal(SIGUSR2, signal_handler)
 
-    if len(sys.argv) < 2:
+    parser = ArgumentParser(prog = "buttond2", description = "PiTFT button daemon.")
+#    parser.add_argument('-d', help = 'Do not daemonize.')
+    parser.add_argument('-D', help = 'Enable debug logging.', action = 'store_true', dest = 'debug_log')
+    parser.add_argument('-V', help = 'Show version.', action = 'store_true', dest = 'show_version')
+    parser.add_argument('start', nargs = '?', help = 'Start the daemon.')
+    parser.add_argument('stop', nargs = '?', help = 'Stop the daemon.')
+    parser.add_argument('restart', nargs = '?', help = 'Restart the daemon.')
+    parser.add_argument('check', nargs = '?', help = 'Check daemon status.')
+    args = parser.parse_args()
+
+    action = None
+    if len(sys.argv) == 3:
+        if sys.argv[2] == '-V' or sys.argv[2] == '-D':
+            action = sys.argv[1]
+        else:
+            action = sys.argv[2]
+    elif len(sys.argv) == 2:
+        action = sys.argv[1]
+    elif len(sys.argv) < 2:
         print "Usage: {0} start|stop|restart".format(sys.argv[0])
         sys.exit(2)
 
+    if args.show_version == True:
+        print(_PRODUCT_NAME + " " + str(__version__))
+        sys.exit(1)
+
+    if args.debug_log == True:
+        _DEBUG_LOG = 1
+
     daemon = Daemon('/var/run/buttond.pid')
 
-    if '-d' == sys.argv[1]:
-        daemon.run()
-    elif 'start' == sys.argv[1]:
+#    if '-d' == sys.argv[1]:
+#        daemon.run()
+    if 'start' == action:
 #        daemon.set_user("pi")
         daemon.start()
-    elif 'stop' == sys.argv[1]:
+    elif 'stop' == action:
         daemon.stop()
-    elif 'restart' == sys.argv[1]:
+    elif 'restart' == action:
         daemon.restart()
-    elif 'check' == sys.argv[1]:
+    elif 'check' == action:
         daemon.check()
     else:
-        print "Unknown command '{0}'".format(sys.argv[1])
+        if '-D' == action:
+            print("The -D argument requires an action to be provided.")
+            sys.exit(0)
+        print("Unknown action '{0}'".format(action))
         sys.exit(2)
 
