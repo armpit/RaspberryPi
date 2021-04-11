@@ -106,11 +106,11 @@ class Daemon(object):
             os.dup2(dev_null.fileno(), sys.stdin.fileno())
 
         sys.stderr.flush()
-        with open(self.stderr, 'a+', 0) as stderr:
+        with open(self.stderr, 'a+') as stderr:
             os.dup2(stderr.fileno(), sys.stderr.fileno())
 
         sys.stdout.flush()
-        with open(self.stdout, 'a+', 0) as stdout:
+        with open(self.stdout, 'a+') as stdout:
             os.dup2(stdout.fileno(), sys.stdout.fileno())
 
         # write pidfile
@@ -236,7 +236,8 @@ class Daemon(object):
     """
     def run(self):
         self.log_message("daemon.run()", 10)
-        setproctitle("PiTFT-buttond")
+        SPT_DEBUG = 1
+        setproctitle.setproctitle("PiTFT-buttond")
         do_shit()
 
 
