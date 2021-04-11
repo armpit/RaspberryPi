@@ -1,5 +1,20 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
+__copyright__ = """
+    Copyright (c) 2021 armpit <armpit@rumpigs.net>
+
+    Permission to use, copy, modify, and distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+"""
 
 __author__ = "armpit"
 __email__ = "armpit@rumpigs.net"
@@ -9,7 +24,7 @@ import atexit
 import datetime
 import os
 import psutil
-import procname
+import setproctitle
 import signal
 import subprocess
 import sys
@@ -68,7 +83,7 @@ class Daemon(object):
             self.log_message("daemon.daemonize() - first fork", 10)
             if os.fork():
                 sys.exit(0)
-        except OSError, e:
+        except OSError as e:
             self.log_message("daemon.daemonize() - first fork failed", 10)
             return E_FAILED
 
@@ -82,7 +97,7 @@ class Daemon(object):
             self.log_message("daemon.daemonize() - second fork", 10)
             if os.fork():
                 sys.exit()
-        except OSError, e:
+        except OSError as e:
             self.log_message("daemon.daemonize() - second fork failed", 10)
             return E_FAILED
 
@@ -110,9 +125,9 @@ class Daemon(object):
             try:
                 uid = pwd.getpwnam(self.daemon_user)[2]
                 os.setuid(uid)
-            except NameError, e:
+            except NameError as e:
                 return E_SET_USER_FAILED
-            except OSError, e:
+            except OSError as e:
                 return E_SET_USER_FAILED
 
         self.log_message("here shines a shiny daemon....", 20)
@@ -154,12 +169,12 @@ class Daemon(object):
         self.log_message("Module File: " + _MODULE_FILE, 20)
         self.log_message("Program Dir: " + _PROGRAM_DIR, 20)
 
-        print "Starting..."
+        print("Starting...")
         self.log_message("daemon.start()", 10)
 
         pid = self.get_pid_by_file()
         if pid != 1:
-            print 'PID file {0} exists. Is the deamon already running?'.format(self.pid_file)
+            print('PID file {0} exists. Is the deamon already running?'.format(self.pid_file))
             sys.exit(1)
 
         d = self.daemonize()
@@ -176,7 +191,7 @@ class Daemon(object):
         Stop the daemon.
     """
     def stop(self):
-        print "Stopping..."
+        print("Stopping...")
         self.log_message("daemon.stop()", 10)
 
         pid = self.get_pid_by_file()
@@ -221,7 +236,7 @@ class Daemon(object):
     """
     def run(self):
         self.log_message("daemon.run()", 10)
-        procname.setprocname("PiTFT-buttond")
+        setproctitle("PiTFT-buttond")
         do_shit()
 
 
@@ -268,10 +283,10 @@ class Daemon(object):
                     os.remove(self.pid_file)
                     return None
                 else:
-                    print err
+                    print(err)
                     return None
             else:
-                print("running (" + str(pid) + ")")
+                print(("running (" + str(pid) + ")"))
         else:
             self.log_message("No pidfile found.", 10)
             try:
@@ -283,7 +298,7 @@ class Daemon(object):
                     procfile = file("/proc/%d/status" % pid, 'r')
                     procfile.close()
 
-                    print("running (" + str(pid) + "), but no pidfile present.")
+                    print(("running (" + str(pid) + "), but no pidfile present."))
                     with open(self.pid_file, 'w+') as pid_file:
                         pid_file.write('{0}'.format(pid))
                 else:
@@ -435,14 +450,20 @@ if __name__ == '__main__':
     signal(SIGUSR1, signal_handler)
     signal(SIGUSR2, signal_handler)
 
-    parser = ArgumentParser(prog = "buttond2", description = "PiTFT button daemon.")
+    parser = ArgumentParser(
+        prog = "buttond2",
+        description = "PiTFT button daemon.",
+        epilog = "buttond2 is released under the ISC license.",
+    )
+    actions = parser.add_argument_group('actions')
 #    parser.add_argument('-d', help = 'Do not daemonize.')
-    parser.add_argument('-D', help = 'Enable debug logging.', action = 'store_true', dest = 'debug_log')
-    parser.add_argument('-V', help = 'Show version.', action = 'store_true', dest = 'show_version')
-    parser.add_argument('start', nargs = '?', help = 'Start the daemon.')
-    parser.add_argument('stop', nargs = '?', help = 'Stop the daemon.')
-    parser.add_argument('restart', nargs = '?', help = 'Restart the daemon.')
-    parser.add_argument('check', nargs = '?', help = 'Check daemon status.')
+    parser.add_argument('-D', '--debug', help = 'Enable debug logging.', action = 'store_true', dest = 'debug_log')
+    parser.add_argument('-l', '--license', help = 'Display license.', action = 'store_true', dest = 'display_license')
+    parser.add_argument('-V', '--version', action = 'version', version = _PRODUCT_NAME + " " + str(__version__))
+    actions.add_argument('start', nargs = '?', help = 'Start the daemon.')
+    actions.add_argument('stop', nargs = '?', help = 'Stop the daemon.')
+    actions.add_argument('restart', nargs = '?', help = 'Restart the daemon.')
+    actions.add_argument('check', nargs = '?', help = 'Check daemon status.')
     args = parser.parse_args()
 
     action = None
@@ -454,12 +475,16 @@ if __name__ == '__main__':
     elif len(sys.argv) == 2:
         action = sys.argv[1]
     elif len(sys.argv) < 2:
-        print "Usage: {0} start|stop|restart".format(sys.argv[0])
+        print("Usage: {0} start|stop|restart".format(sys.argv[0]))
         sys.exit(2)
 
-    if args.show_version == True:
-        print(_PRODUCT_NAME + " " + str(__version__))
+    if args.display_license == True:
+        print(__copyright__)
         sys.exit(1)
+
+#    if args.show_version == True:
+#        print(_PRODUCT_NAME + " " + str(__version__))
+#        sys.exit(1)
 
     if args.debug_log == True:
         _DEBUG_LOG = 1
@@ -481,6 +506,6 @@ if __name__ == '__main__':
         if '-D' == action:
             print("The -D argument requires an action to be provided.")
             sys.exit(0)
-        print("Unknown action '{0}'".format(action))
+        print(("Unknown action '{0}'".format(action)))
         sys.exit(2)
 
